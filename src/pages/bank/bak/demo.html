@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>读取文件</title>
+	<script src="js/shim.js"></script>
+	<script src="js/xlsx.full.min.js"></script>
+	<script src="js/jschardet.min.js"></script>
+</head>
+<body>
+    <input type='file' value="" id="read" >
+    
+    <!-- https://blog.csdn.net/github_37373329/article/details/79269069 -->
+</body>
+<script>
+	String.prototype.trim=function(){ //给字符串添加一个去前后空格的方法
+		return this.replace(/s|xA0/g,"");
+	}
+	window.onload=function(){
+		var file=document.getElementById("read");
+		file.addEventListener("change",read,false);		
+		/*function resetInpuFile() {      //定义一个重置input file控件的方法，否则如果文件不变,不能再次触发input控件的onchange事件
+                    var control = event.target;
+                    //control.replaceWith(control = control.clone(true));       //这个重置方法对vue没用，vue的事件不是直接绑定的，所以复制不了
+                    control.wrap('<form>').closest('form').get(0).reset();      //用一个form包裹input，调用form的reset方法，然后解除包裹
+                    control.unwrap();
+        }*/
+		function read(e){
+			//获取文件类型
+			var filename=e.target.files[0].name;
+			var phoneStr = '';
+            var messageContent='';
+			console.log(filename);
+			var fileType=filename.substr(filename.lastIndexOf('.')+1,filename.length);
+			console.log(fileType);
+			//检测是浏览器是否支持readAsBinaryString函数
+			var rABS = typeof FileReader !== 'undefined' && typeof FileReader.prototype !== 'undefined' && typeof FileReader.prototype.readAsBinaryString !== 'undefined';  
+			var reader=new FileReader();
+			if(rABS){
+				reader.readAsBinaryString(e.target.files[0]);//发起异步请求
+			}else{
+				reader.readAsArrayBuffer(e.target.files[0]);//发起异步请求
+			}
+			//reader.readAsDataURL(e.target.files[0]);//发起异步请求
+			//reader.readAsArrayBuffer(e.target.files[0]);//发起异步请求
+			reader.onload=function(e){
+				var data = e.target.result;
+                    if (fileType == 'txt' || fileType == 'csv') {       //txt或csv文件直接读取
+                        //console.log(data);
+                        var str = null;
+                        var viewBuf = null;
+                        if (rABS) {
+                            str = data;   //此时data为binarystring，需要把binarystring转换为Uint8Array
+                            var newArray = [];
+                            for (var index = 0; index < data.length; index++) {
+                                newArray.push(data.charCodeAt(index));
+                            }
+                            viewBuf = new Uint8Array(newArray);
+                        } else {
+                            viewBuf = new Uint8Array(data);   //此时data为ArrayBuffer
+                            for (var index in viewBuf) {
+                                str += String.fromCharCode(viewBuf[index]);
+                                if (index >= 100) {     //考虑到效率，只取前1000个用于判断字符集
+                                    break;
+                                }
+                            }
+                        }
+
+                        //console.log(str);
+                        var codepage = jschardet.detect(str.substring(0, 1000)).encoding;
+                        //console.log(codepage);
+
+                        if (codepage == 'GB2312' || codepage == 'GB18030') {
+                            codepage = 'GB18030';
+                        } else if (codepage == 'ascii' || codepage == 'UTF-8' || codepage == 'UTF-16BE' || codepage == 'UTF-16LE') {
+
+                        } else {
+                            alert('不支持的编码格式:' + codepage + ';你只能使用UTF-8或GB18030(GB2320,GBK)编码格式文件');
+                           // resetInpuFile();
+                            return;
+                        }
+                        phoneStr = new TextDecoder(codepage).decode(viewBuf);
+                        console.log(phoneStr);
+                    } else if (fileType == 'xls' || fileType == 'xlsx') {       //excle文件用js-xlsx解析
+
+                        function fixdata(data) {    //arrayBuffer转base64字符串
+                            var o = "", l = 0, w = 10240;
+                            for (; l < data.byteLength / w; ++l)
+                                o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l * w, l * w + w)));
+                            o += String.fromCharCode.apply(null, new Uint8Array(data.slice(o.length)));
+                            return o;
+                        }
+
+                        function get_columns(sheet, type) {   //获取head头(excel文件第一行)
+                            var val, rowObject, range, columnHeaders, emptyRow, C;
+                            if (!sheet['!ref']) return [];
+                            range = XLS.utils.decode_range(sheet["!ref"]);
+                            columnHeaders = [];
+                            for (C = range.s.c; C <= range.e.c; ++C) {
+                                val = sheet[XLS.utils.encode_cell({ c: C, r: range.s.r })];
+                                if (!val) continue;
+                                columnHeaders[C] = type.toLowerCase() == 'xls' ? XLS.utils.format_cell(val) : val.v;
+                                //console.log(val, columnHeaders[C]);
+                            }
+                            return columnHeaders;
+                        }
+
+                        var readtype = { type: rABS ? 'binary' : 'base64' };
+                        if (!rABS) {
+                            arr = fixdata(data);
+                            data = btoa(arr);
+                        }
+                        //console.log('data:' + data);
+                        try {
+                            var workbook = XLSX.read(data, readtype);   //workbook.SheetNames[0]是获取Sheets中第一个Sheet的名字,workbook.Sheets[Sheet名]获取第一个Sheet的数据
+                        } catch (e) {
+                            alert('无法读取的excel文件,格式错误');
+                            resetInpuFile();
+                            return;
+                        }
+                        //console.log(wb); 
+                        var XL = fileType.toUpperCase() === 'XLS' ? XLS : XLSX;   //选择是XLS对象还是XLSX对象
+
+                        workbook.SheetNames.forEach(function (sheetName) {
+                            var roa = XL.utils.sheet_to_json(workbook.Sheets[sheetName], { raw: true });
+                           // console.log(roa);
+                            if (roa.length <= 0) {
+                                return;
+                            }
+                            var columns = get_columns(workbook.Sheets[sheetName], fileType);    //获取本sheet的第一行
+                            var keyName = '';
+                            var keyName1='';
+                            for (var index in columns) {    //查看第一行的列里是否有诸如手机号码这样列名
+                                //if ($.trim(columns[index]) === '手机号码') {
+                                if (columns[index].trim() === '手机号码') {
+                                    keyName = columns[index];
+                                    continue;
+                                }
+                                 //if($.trim(columns[index]) === '短信内容'){
+                                 if(columns[index].trim() === '短信内容'){
+                                    keyName1 = columns[index];
+                                    continue;
+                                }
+                            }
+                            if (keyName === '') {   //没找到,返回
+                            //    console.log('没找到key');
+                                return;
+                            }
+                            if (keyName1 === '') {   //没找到,返回
+                             //   console.log('没找到key');
+                                return;
+                            }
+                            for (var index=0;index<roa.length;index++) {//这里吧读出来的数据存成字符串
+                                if(roa[index][keyName]!='' && roa[index][keyName1]!=''){
+                                    phoneStr += roa[index][keyName] + ',';
+                                    messageContent +=(roa[index][keyName1]).replace(/,/g,'，')+',';
+                                }
+                            }
+
+                            //
+                        });
+                        //console.log(phoneStr);
+                        if (phoneStr === '' || messageContent==='') {
+                            alert('没有在excle文件中找到"手机号码或者短信内容"列');
+                           // resetInpuFile();
+                            return;
+                        }
+                    }
+					console.log(phoneStr)
+					console.log(messageContent)
+                   // resetInpuFile();
+				
+			}
+		}
+	}
+</script>
+</html>

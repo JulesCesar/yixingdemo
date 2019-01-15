@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- <meta base="/app/"> -->
+        <meta charset="utf-8">
+        <title>首席财务官</title>
+        <meta
+            content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+            name="viewport">
+            <!-- <script>
+                var _hmt = _hmt || [];
+                (function() {
+                  var hm = document.createElement("script");
+                  hm.src = "https://hm.baidu.com/hm.js?c6c45de2d8b4a7479adcc11f8d4e4267";
+                  var s = document.getElementsByTagName("script")[0]; 
+                  s.parentNode.insertBefore(hm, s);
+                })();
+                </script> style="background-color: #ececec;"-->
+                <script src="https://jic.talkingdata.com/app/h5/v1?appid=F79CCC4D0CA14E5CA53BB4CD5C46D456&vn=bamai_pc&vc=2.6.2"></script>
+                
+    </head>
+    <body class="skin-black-light sidebar-mini" >
+        <div id="app"></div>
+        <script>
+            document.onkeydown = function() {
+                if (event.keyCode == 9) {  
+                    return false;
+                }
+            }
+            
+            // 解决控制台中warning的信息提示
+            // Added non-passive event listener to a scroll-blocking 'touchstart' event.
+            var passiveSupported = false;
+            try {
+                var options = Object.defineProperty({}, "passive", {
+                    get: function() {
+                        passiveSupported = true;
+                    }
+                });
+                window.addEventListener("test", null, options);
+            } catch(err) {}
+            function fn() {
+                console.log("fn")
+            }
+            document.addEventListener("touchstart", fn, passiveSupported ? { passive: true } : false)
+            document.addEventListener("touchmove", fn, passiveSupported ? { passive: true } : false)
+        </script>
+    </body>
+</html>
